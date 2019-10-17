@@ -97,7 +97,8 @@ class InvertedIndex {
                     byte[] bytesForTerm = docIdsVarByte.toString().getBytes();
                     Integer totalBytesForTerm = bytesForTerm.length;
                     invertedIndexFile.write(bytesForTerm);
-                    lexiconFile.write((previousTerm + " " + (totalBytes + 1) + " " + totalBytesForTerm).getBytes());
+                    lexiconFile.write((previousTerm + " " + (totalBytes + 1) + " " + totalBytesForTerm + " "
+                            + docIdsToFreqMapping.size()+" \n").getBytes());
                     docIdsToFreqMapping.clear();
                     docIdsToFreqMapping.put(Integer.parseInt(posting[1]), Integer.parseInt(posting[2]));
                     totalBytes += totalBytesForTerm;

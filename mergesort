@@ -1,0 +1,10 @@
+#!/bin/bash
+now=$(date +"%T")
+echo "Current time : $now"
+cmd="sort -S 50% --parallel=4 "
+for input in ./postings/*.gz; do
+    cmd="$cmd <(zcat '$input')"
+done
+eval "$cmd" | gzip -c > sorted.gz
+now=$(date +"%T")
+echo "Current time : $now"

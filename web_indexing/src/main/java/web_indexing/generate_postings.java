@@ -1,14 +1,18 @@
 package web_indexing;
 
-import java.io.*;
-import java.util.zip.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.GZIPOutputStream;
+
+import org.apache.commons.io.IOUtils;
 import org.archive.io.ArchiveReader;
 import org.archive.io.ArchiveRecord;
 import org.archive.io.ArchiveRecordHeader;
-import org.apache.commons.io.IOUtils;
 import org.archive.io.warc.WARCReaderFactory;
-import java.util.HashMap;
-import java.util.Map;
 
 class GeneratePostings {
     private String wetFilesPath;
@@ -48,7 +52,7 @@ class GeneratePostings {
     }
 
     private Boolean isCorrectWord(String word) {
-        return ((word != null) && (word.length() > 2) && (word.matches("^[a-zA-Z]*$")));
+        return ((word != null) && (word.length() > 2) && (word.matches("^[a-zA-Z0-9]*$")));
     }
 
     private Map<String, Integer> findWordsCount(String[] words) {

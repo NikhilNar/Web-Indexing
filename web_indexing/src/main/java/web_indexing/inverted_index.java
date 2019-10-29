@@ -47,10 +47,13 @@ class InvertedIndex {
         String binaryValue = Integer.toBinaryString(number);
         StringBuffer sb = new StringBuffer();
         int counter = 7;
+        Boolean lastBit = false;
         for (int i = binaryValue.length() - 1; i >= 0; i--) {
             Character bit = binaryValue.charAt(i);
             if (counter == 0) {
-                sb.append("1" + bit);
+                String lastBitValue = lastBit ? "0" : "1";
+                lastBit = true;
+                sb.append(lastBitValue + bit);
                 counter = 6;
             } else {
                 sb.append(bit);
@@ -92,13 +95,12 @@ class InvertedIndex {
                         lastDocId = currentDocId;
                     }
                     docIdsVarByte.append(frequenciesVarByte);
-                    docIdsVarByte.append("\n");
                     System.out.println("term =======" + posting[0]);
                     byte[] bytesForTerm = docIdsVarByte.toString().getBytes();
                     Integer totalBytesForTerm = bytesForTerm.length;
                     invertedIndexFile.write(bytesForTerm);
                     lexiconFile.write((previousTerm + " " + (totalBytes + 1) + " " + totalBytesForTerm + " "
-                            + docIdsToFreqMapping.size()+" \n").getBytes());
+                            + docIdsToFreqMapping.size() + " \n").getBytes());
                     docIdsToFreqMapping.clear();
                     docIdsToFreqMapping.put(Integer.parseInt(posting[1]), Integer.parseInt(posting[2]));
                     totalBytes += totalBytesForTerm;
@@ -120,7 +122,6 @@ class InvertedIndex {
         InvertedIndex index = new InvertedIndex("./sorted.gz", "./lexicon.gz", "./invertedIndex.gz");
         if (index.ifLexiconAndInvertedIndexDocumentCreated())
             index.createIndex();
-        // System.out.println(index.findVarByte(128));
         System.out.println("Total time =" + (System.currentTimeMillis() - startTime) / 60000.0);
     }
 

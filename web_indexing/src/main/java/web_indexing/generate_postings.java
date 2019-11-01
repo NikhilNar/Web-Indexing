@@ -113,7 +113,7 @@ class GeneratePostings {
                         gzos.write(posting.getBytes());
                     }
 
-                    urlToDocMappingFile.write((totalUrls + " " + url + " \n").getBytes());
+                    urlToDocMappingFile.write((totalUrls + " " + url + " " + words.length + " \n").getBytes());
 
                     System.out.println("=-=-=-=-=-=-=-=-=");
 

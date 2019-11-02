@@ -18,11 +18,13 @@ class GeneratePostings {
     private String wetFilesPath;
     private GZIPOutputStream urlToDocMappingFile;
     private File postingsDirectory;
+    private File documentsDirectory;
 
-    GeneratePostings(String wetFilesPath, String postingsOutputPath) {
+    GeneratePostings(String wetFilesPath, String postingsOutputPath, String documentDirectoryPath) {
         this.wetFilesPath = wetFilesPath;
         this.urlToDocMappingFile = createUrlToDocMapping();
         this.postingsDirectory = createOutputDirectory(postingsOutputPath);
+        this.documentsDirectory = createOutputDirectory(documentDirectoryPath);
     }
 
     private GZIPOutputStream createUrlToDocMapping() {
@@ -35,7 +37,7 @@ class GeneratePostings {
     }
 
     public Boolean ifDirectoryAndMappingDocumentCreated() {
-        return postingsDirectory != null && urlToDocMappingFile != null;
+        return postingsDirectory != null && documentsDirectory != null && urlToDocMappingFile != null;
     }
 
     private File createOutputDirectory(String postingsPath) {
@@ -81,6 +83,7 @@ class GeneratePostings {
         final File folder = new File(wetFilesPath);
         int fileEntryIndex = 0;
         long totalUrls = 0;
+        long totalDocumentsBytes = 0;
         try {
             for (final File fileEntry : folder.listFiles()) {
                 fileEntryIndex++;
@@ -88,6 +91,8 @@ class GeneratePostings {
                 ArchiveReader ar = WARCReaderFactory.get(wetFilesPath + "/" + fileEntry.getName(), is, true);
                 GZIPOutputStream gzos = new GZIPOutputStream(
                         new FileOutputStream(postingsDirectory.getName() + "/" + fileEntryIndex + ".gz"));
+                String fileName = documentsDirectory.getName() + "/" + fileEntryIndex;
+                FileOutputStream documentsFile = new FileOutputStream(fileName);
                 for (ArchiveRecord r : ar) {
 
                     ArchiveRecordHeader header = r.getHeader();
@@ -95,7 +100,7 @@ class GeneratePostings {
                     if (url == null) {
                         continue;
                     }
-                    System.out.println("totalURLs =" + totalUrls + " URL=" + url);
+                    // System.out.println("totalURLs =" + totalUrls + " URL=" + url);
 
                     byte[] rawData = IOUtils.toByteArray(r, r.available());
 
@@ -113,11 +118,17 @@ class GeneratePostings {
                         gzos.write(posting.getBytes());
                     }
 
-                    urlToDocMappingFile.write((totalUrls + " " + url + " " + words.length + " \n").getBytes());
+                    documentsFile.write(rawData);
 
-                    System.out.println("=-=-=-=-=-=-=-=-=");
+                    urlToDocMappingFile.write((totalUrls + " " + url + " " + words.length + " " + fileName + " "
+                            + totalDocumentsBytes + " " + rawData.length + " \n").getBytes());
+
+                    totalDocumentsBytes += rawData.length;
+
+                    // System.out.println("=-=-=-=-=-=-=-=-=");
 
                 }
+                documentsFile.close();
                 gzos.finish();
                 gzos.close();
             }
@@ -129,7 +140,7 @@ class GeneratePostings {
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        GeneratePostings gp = new GeneratePostings("./wet_files", "./postings");
+        GeneratePostings gp = new GeneratePostings("./wet_files", "./postings", "./documents");
         if (gp.ifDirectoryAndMappingDocumentCreated())
             gp.createPostings();
         System.out.println("Total time =" + (System.currentTimeMillis() - startTime) / 60000.0);

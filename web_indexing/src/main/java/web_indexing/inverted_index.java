@@ -95,7 +95,7 @@ class InvertedIndex {
                         lastDocId = currentDocId;
                     }
                     docIdsVarByte.append(frequenciesVarByte);
-                    System.out.println("term =======" + posting[0]);
+                    // System.out.println("term =======" + posting[0]);
                     byte[] bytesForTerm = docIdsVarByte.toString().getBytes();
                     Integer totalBytesForTerm = bytesForTerm.length;
                     invertedIndexFile.write(bytesForTerm);

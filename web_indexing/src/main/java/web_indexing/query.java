@@ -6,11 +6,11 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.zip.GZIPInputStream;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 class Posting {
@@ -100,7 +100,7 @@ class PostingList {
                 }
             }
             int i = 0;
-            int docIdsCount = 0;
+            Integer docIdsCount = 0;
             for (Integer no : varByteDecodingList) {
                 i++;
                 if (i <= varByteDecodingList.size() / 2) {
@@ -113,6 +113,7 @@ class PostingList {
             if (docIds.size() > 0) {
                 index++;
             }
+            invertedIndexFile.close();
             // System.out.println("docIds ====" + docIds);
             // System.out.println("frequencies ====" + frequencies);
         } catch (IOException e) {
@@ -126,12 +127,14 @@ class SearchResult implements Comparable<SearchResult> {
     private Integer documentId;
     private Double score;
     private String snippet;
+    private HashMap<String, Integer> wordsFrequenciesMap;
 
     SearchResult(String url, Integer documentId, Double score, String snippet) {
         this.url = url;
         this.documentId = documentId;
         this.score = score;
         this.snippet = snippet;
+        wordsFrequenciesMap = new HashMap();
     }
 
     public String getUrl() {
@@ -148,6 +151,10 @@ class SearchResult implements Comparable<SearchResult> {
 
     public Integer getDocumentId() {
         return documentId;
+    }
+
+    public HashMap<String, Integer> getWordsFrequenciesMap() {
+        return wordsFrequenciesMap;
     }
 
     public void setSnippet(String snippet) {
@@ -247,6 +254,26 @@ class Query {
             GZIPInputStream lexiconFile = new GZIPInputStream(new FileInputStream(fileName));
             BufferedReader br = new BufferedReader(new InputStreamReader(lexiconFile));
             String currentTerm = null;
+            HashMap<Integer, Integer> entries = new HashMap();
+            entries.put(1000, 1);
+            entries.put(10000, 1);
+            entries.put(100000, 1);
+            entries.put(500000, 1);
+            entries.put(600000, 1);
+            entries.put(700000, 1);
+            entries.put(800000, 1);
+            entries.put(900000, 1);
+            entries.put(1000000, 1);
+            entries.put(1200000, 1);
+            entries.put(1400000, 1);
+            entries.put(1600000, 1);
+            entries.put(1800000, 1);
+            entries.put(2000000, 1);
+            entries.put(3000000, 1);
+            entries.put(4000000, 1);
+            entries.put(5000000, 1);
+            entries.put(6000000, 1);
+            Integer i = 0;
             while ((currentTerm = br.readLine()) != null) {
                 String[] docIdsToUrlMappingValues = currentTerm.split(" ");
                 // System.out.println("currentTerm ======" + currentTerm);
@@ -255,11 +282,20 @@ class Query {
                     String url = docIdsToUrlMappingValues[1];
                     Integer totalTermsCount = Integer.parseInt(docIdsToUrlMappingValues[2]);
                     String documentFileName = docIdsToUrlMappingValues[3];
-                    Integer offset = Integer.parseInt(docIdsToUrlMappingValues[4]) - 1;
-                    Integer size = Integer.parseInt(docIdsToUrlMappingValues[5]);
-                    totalDocumentsTerms += totalTermsCount;
-                    docIdToUrlMap.put(docId, new URLMapping(url, totalTermsCount, documentFileName, offset, size));
+                    try {
+                        Integer offset = Integer.parseInt(docIdsToUrlMappingValues[4]) - 1;
+                        Integer size = Integer.parseInt(docIdsToUrlMappingValues[5]);
+                        totalDocumentsTerms += totalTermsCount;
+                        docIdToUrlMap.put(docId, new URLMapping(url, totalTermsCount, documentFileName, offset, size));
+                    } catch (Exception e) {
+                        System.out.println("Exception caught" + e);
+                    }
+
                 }
+                if (entries.containsKey(i)) {
+                    System.out.println("i=" + i);
+                }
+                i++;
             }
             System.out.println("buildDocIdsToUrlMappingSize =====" + docIdToUrlMap.size());
             lexiconFile.close();
@@ -299,28 +335,36 @@ class Query {
     }
 
     public String createSnippet(String content, String[] words) {
-        String snippet = "";
+        String contentLowerCase = content.toLowerCase();
         ArrayList<Integer> indices = new ArrayList();
         LinkedList<Integer> queue = new LinkedList();
         for (String word : words) {
-            int index = content.indexOf(word);
+            if (word.length() == 0) {
+                continue;
+            }
+            int index = contentLowerCase.indexOf(word);
             if (index >= 0) {
                 indices.add(index);
             }
             while (index >= 0) {
-                index = content.indexOf(word, index + word.length());
+                index = contentLowerCase.indexOf(word, index + word.length());
                 if (index >= 0) {
                     indices.add(index);
                 }
             }
         }
-
-        int startIndex = indices.get(0), endIndex = startIndex, maxIndices = 1, noOfCharsDiff = 40, diffInQueue = 0;
+        Collections.sort(indices);
+        int startIndex = indices.get(0), endIndex = startIndex, maxIndices = 1, noOfCharsDiff = 300, diffInQueue = 0;
         queue.add(startIndex);
         for (int i = 1; i < indices.size() - 1; i++) {
             Integer diff = indices.get(i) - indices.get(i - 1);
-            while (diffInQueue + diff > noOfCharsDiff) {
-                diffInQueue -= queue.poll();
+            while (diffInQueue + diff > noOfCharsDiff && queue.size() > 0) {
+                int diffAfterRemoval = 0;
+                int removedValue = queue.poll();
+                if (queue.size() > 1) {
+                    diffAfterRemoval = queue.get(0) - removedValue;
+                }
+                diffInQueue -= diffAfterRemoval;
             }
             queue.add(indices.get(i));
             if (queue.size() > maxIndices) {
@@ -329,16 +373,18 @@ class Query {
                 maxIndices = queue.size();
             }
         }
-        String start = "", end = "";
+        String start = "";
         String preIndex = content.substring(0, startIndex);
         int preIndexValue = -1;
-        if ((preIndexValue = preIndex.lastIndexOf(". ")) > 0) {
+        if ((preIndexValue = preIndex.lastIndexOf(".")) > 0) {
             start = content.substring(preIndexValue + 1, startIndex);
         } else {
             start = content.substring(lastCapitalIndex(content.substring(0, startIndex)), startIndex);
         }
 
-        return start + content.substring(startIndex, endIndex);
+        String snippetContent = start + content.substring(startIndex);
+
+        return snippetContent.substring(0, Math.min(497, snippetContent.length())) + "...";
     }
 
     public void generateSnippet(SearchResult sr, String[] words) {
@@ -349,9 +395,10 @@ class Query {
             byte[] byteArray = new byte[um.getSize()];
             invertedIndexFile.read(byteArray);
             String content = new String(byteArray);
+            System.out.println("content ==========" + content);
             String snippet = createSnippet(content, words);
             sr.setSnippet(snippet);
-
+            invertedIndexFile.close();
         } catch (IOException e) {
             System.out.println("Unable to read file");
         }
@@ -364,7 +411,7 @@ class Query {
         for (int i = 0; i < postingLists.size(); i++) {
             PostingList pl = postingLists.get(i);
             ft.add(pl.getDocIdsSize());
-            Integer d = 0;
+            Integer d = new Integer(0);
             while ((d = pl.nextGEQ(d)) != null) {
                 if (!distinctDocIdsFreqMap.containsKey(d)) {
                     Integer[] intArray = new Integer[postingLists.size()];
@@ -399,7 +446,8 @@ class Query {
     }
 
     public void findDisjunctiveResults(List<PostingList> postingLists, PriorityQueue<SearchResult> result) {
-        Integer did = 0, d = -1;
+        System.out.println("in findDisjunctiveResults========");
+        Integer did = new Integer(0), d = new Integer(-1);
         ArrayList<Integer> ft = new ArrayList();
         for (PostingList currentPL : postingLists) {
             ft.add(currentPL.getDocIdsSize());
@@ -480,14 +528,40 @@ class Query {
         return finalListOfUrls;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Query query = new Query(10, "./invertedIndex");
         query.buildLexicon("./lexicon.gz");
         query.buildDocIdsToUrlMapping("./url_doc_mapping.gz");
-        List<SearchResult> l = query.getSearchResults(" nobel  america nigerian ", "conjunctive");
-        for (SearchResult sr : l) {
-            System.out
-                    .println("URL===" + sr.getUrl() + " score====" + sr.getScore() + " snippet====" + sr.getSnippet());
-        }
+
+        SearchResult sr = new SearchResult("url", 69476, 2.0, "snippet");
+        String[] words = new String[3];
+        words[0] = "america";
+        words[1] = "nigeria";
+        words[2] = "nobel";
+        query.generateSnippet(sr, words);
+
+        // while (true) {
+        // BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        // System.out.print("Enter query or enter exit to quit : ");
+        // String input = br.readLine();
+        // if (input.equals("exit")) {
+        // break;
+        // }
+        // System.out.print("Enter type of query(conjunctive or disjunctive) : ");
+        // String queryType = br.readLine();
+        // long startTime = System.currentTimeMillis();
+        // List<SearchResult> l = query.getSearchResults(input, queryType);
+        // for (SearchResult sr : l) {
+        // System.out.println("URL =" + sr.getUrl());
+        // System.out.println("score =" + sr.getScore());
+        // System.out.println("");
+        // System.out.println(sr.getSnippet());
+        // System.out.println("====================================================================");
+        // }
+        // System.out.println("Total time =" + (System.currentTimeMillis() - startTime)
+        // / 1000.0 + " s");
+
+        // }
+
     }
 }

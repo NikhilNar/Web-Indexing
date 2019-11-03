@@ -83,10 +83,10 @@ class GeneratePostings {
         final File folder = new File(wetFilesPath);
         int fileEntryIndex = 0;
         long totalUrls = 0;
-        long totalDocumentsBytes = 0;
         try {
             for (final File fileEntry : folder.listFiles()) {
                 fileEntryIndex++;
+                long totalDocumentsBytes = 0;
                 FileInputStream is = new FileInputStream(fileEntry);
                 ArchiveReader ar = WARCReaderFactory.get(wetFilesPath + "/" + fileEntry.getName(), is, true);
                 GZIPOutputStream gzos = new GZIPOutputStream(

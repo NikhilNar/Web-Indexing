@@ -2,6 +2,7 @@ package web_indexing;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -12,13 +13,22 @@ import java.util.zip.GZIPOutputStream;
 
 class InvertedIndex {
     private GZIPOutputStream lexiconFile;
-    private GZIPOutputStream invertedIndexFile;
+    private FileOutputStream invertedIndexFile;
     private GZIPInputStream sortedTermsFile;
 
     InvertedIndex(String sortedTermsFilePath, String lexiconFilePath, String invertedIndexPath) {
         this.lexiconFile = createGzipFile(lexiconFilePath);
-        this.invertedIndexFile = createGzipFile(invertedIndexPath);
+        this.invertedIndexFile = createFile(invertedIndexPath);
         this.sortedTermsFile = openTermsFile(sortedTermsFilePath);
+    }
+
+    private FileOutputStream createFile(String fileName) {
+        try {
+            return new FileOutputStream(fileName);
+        } catch (FileNotFoundException e) {
+            System.out.println("Unable to read file");
+        }
+        return null;
     }
 
     private GZIPInputStream openTermsFile(String fileName) {
@@ -83,7 +93,7 @@ class InvertedIndex {
                 if (posting[0].equals(previousTerm) || previousTerm == null) {
                     docIdsToFreqMapping.put(Integer.parseInt(posting[1]), Integer.parseInt(posting[2]));
                 } else {
-                    StringBuffer index = new StringBuffer();
+                    // StringBuffer index = new StringBuffer();
                     StringBuffer docIdsVarByte = new StringBuffer();
                     StringBuffer frequenciesVarByte = new StringBuffer();
                     Integer lastDocId = null;
@@ -108,7 +118,6 @@ class InvertedIndex {
                 previousTerm = posting[0];
             }
             sortedTermsFile.close();
-            invertedIndexFile.finish();
             invertedIndexFile.close();
             lexiconFile.finish();
             lexiconFile.close();
@@ -119,7 +128,7 @@ class InvertedIndex {
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        InvertedIndex index = new InvertedIndex("./sorted.gz", "./lexicon.gz", "./invertedIndex.gz");
+        InvertedIndex index = new InvertedIndex("./sorted.gz", "./lexicon.gz", "./invertedIndex");
         if (index.ifLexiconAndInvertedIndexDocumentCreated())
             index.createIndex();
         System.out.println("Total time =" + (System.currentTimeMillis() - startTime) / 60000.0);

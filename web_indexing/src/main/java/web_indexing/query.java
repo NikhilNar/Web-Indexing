@@ -127,14 +127,14 @@ class SearchResult implements Comparable<SearchResult> {
     private Integer documentId;
     private Double score;
     private String snippet;
-    private HashMap<String, Integer> wordsFrequenciesMap;
+    private List<Integer> wordsFrequenciesList;
 
     SearchResult(String url, Integer documentId, Double score, String snippet) {
         this.url = url;
         this.documentId = documentId;
         this.score = score;
         this.snippet = snippet;
-        wordsFrequenciesMap = new HashMap();
+        wordsFrequenciesList = new ArrayList();
     }
 
     public String getUrl() {
@@ -153,12 +153,16 @@ class SearchResult implements Comparable<SearchResult> {
         return documentId;
     }
 
-    public HashMap<String, Integer> getWordsFrequenciesMap() {
-        return wordsFrequenciesMap;
+    public List<Integer> getWordsFrequenciesList() {
+        return wordsFrequenciesList;
     }
 
     public void setSnippet(String snippet) {
         this.snippet = snippet;
+    }
+
+    public void setWordsFrequenciesList(List<Integer> wordsFrequenciesList) {
+        this.wordsFrequenciesList = wordsFrequenciesList;
     }
 
     @Override
@@ -230,7 +234,6 @@ class Query {
             String currentTerm = null;
             while ((currentTerm = br.readLine()) != null) {
                 String[] lexiconValues = currentTerm.split(" ");
-                // System.out.println("currentTerm ======" + currentTerm);
                 if (lexiconValues.length == 4) {
                     String term = lexiconValues[0];
                     Integer offset = Integer.parseInt(lexiconValues[1]) - 1;
@@ -244,9 +247,6 @@ class Query {
         } catch (IOException e) {
             System.out.println("Unable to read content from file");
         }
-        // lexiconMap.put("america", new Posting(11150544, 13888, 839));
-        // lexiconMap.put("nigerian", new Posting(84141512, 1376, 63));
-        // lexiconMap.put("nobel", new Posting(84351832, 1448, 67));
     }
 
     public void buildDocIdsToUrlMapping(String fileName) {
@@ -254,29 +254,8 @@ class Query {
             GZIPInputStream lexiconFile = new GZIPInputStream(new FileInputStream(fileName));
             BufferedReader br = new BufferedReader(new InputStreamReader(lexiconFile));
             String currentTerm = null;
-            HashMap<Integer, Integer> entries = new HashMap();
-            entries.put(1000, 1);
-            entries.put(10000, 1);
-            entries.put(100000, 1);
-            entries.put(500000, 1);
-            entries.put(600000, 1);
-            entries.put(700000, 1);
-            entries.put(800000, 1);
-            entries.put(900000, 1);
-            entries.put(1000000, 1);
-            entries.put(1200000, 1);
-            entries.put(1400000, 1);
-            entries.put(1600000, 1);
-            entries.put(1800000, 1);
-            entries.put(2000000, 1);
-            entries.put(3000000, 1);
-            entries.put(4000000, 1);
-            entries.put(5000000, 1);
-            entries.put(6000000, 1);
-            Integer i = 0;
             while ((currentTerm = br.readLine()) != null) {
                 String[] docIdsToUrlMappingValues = currentTerm.split(" ");
-                // System.out.println("currentTerm ======" + currentTerm);
                 if (docIdsToUrlMappingValues.length == 6) {
                     Integer docId = Integer.parseInt(docIdsToUrlMappingValues[0]);
                     String url = docIdsToUrlMappingValues[1];
@@ -292,10 +271,6 @@ class Query {
                     }
 
                 }
-                if (entries.containsKey(i)) {
-                    System.out.println("i=" + i);
-                }
-                i++;
             }
             System.out.println("buildDocIdsToUrlMappingSize =====" + docIdToUrlMap.size());
             lexiconFile.close();
@@ -306,8 +281,6 @@ class Query {
     }
 
     public Double calculateBM25(ArrayList<Integer> ft, ArrayList<Integer> fdt, Integer modd) {
-        // Random r = new Random();
-        // return 0 + 100 * r.nextDouble();
         Double score = 0.0;
         Integer N = docIdToUrlMap.size();
         Double moddavg = (double) totalDocumentsTerms / N;
@@ -395,7 +368,6 @@ class Query {
             byte[] byteArray = new byte[um.getSize()];
             invertedIndexFile.read(byteArray);
             String content = new String(byteArray);
-            System.out.println("content ==========" + content);
             String snippet = createSnippet(content, words);
             sr.setSnippet(snippet);
             invertedIndexFile.close();
@@ -434,6 +406,8 @@ class Query {
             URLMapping um = docIdToUrlMap.get(did);
             SearchResult sr = new SearchResult(um.getUrl(), did, calculateBM25(ft, fdt, um.getTotalTermsCount()),
                     "snippet");
+            sr.setWordsFrequenciesList(fdt);
+
             if (result.size() == totalResults) {
                 if (result.peek().getScore() < sr.getScore()) {
                     result.poll();
@@ -446,7 +420,6 @@ class Query {
     }
 
     public void findDisjunctiveResults(List<PostingList> postingLists, PriorityQueue<SearchResult> result) {
-        System.out.println("in findDisjunctiveResults========");
         Integer did = new Integer(0), d = new Integer(-1);
         ArrayList<Integer> ft = new ArrayList();
         for (PostingList currentPL : postingLists) {
@@ -479,6 +452,7 @@ class Query {
                 URLMapping um = docIdToUrlMap.get(did);
                 SearchResult sr = new SearchResult(um.getUrl(), did, calculateBM25(ft, fdt, um.getTotalTermsCount()),
                         "snippet");
+                sr.setWordsFrequenciesList(fdt);
                 if (result.size() == totalResults) {
                     if (result.peek().getScore() < sr.getScore()) {
                         result.poll();
@@ -524,6 +498,7 @@ class Query {
             generateSnippet(sr, words);
             finalListOfUrls.add(sr);
         }
+        Collections.sort(finalListOfUrls, Collections.reverseOrder());
 
         return finalListOfUrls;
     }
@@ -533,35 +508,28 @@ class Query {
         query.buildLexicon("./lexicon.gz");
         query.buildDocIdsToUrlMapping("./url_doc_mapping.gz");
 
-        SearchResult sr = new SearchResult("url", 69476, 2.0, "snippet");
-        String[] words = new String[3];
-        words[0] = "america";
-        words[1] = "nigeria";
-        words[2] = "nobel";
-        query.generateSnippet(sr, words);
-
-        // while (true) {
-        // BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        // System.out.print("Enter query or enter exit to quit : ");
-        // String input = br.readLine();
-        // if (input.equals("exit")) {
-        // break;
-        // }
-        // System.out.print("Enter type of query(conjunctive or disjunctive) : ");
-        // String queryType = br.readLine();
-        // long startTime = System.currentTimeMillis();
-        // List<SearchResult> l = query.getSearchResults(input, queryType);
-        // for (SearchResult sr : l) {
-        // System.out.println("URL =" + sr.getUrl());
-        // System.out.println("score =" + sr.getScore());
-        // System.out.println("");
-        // System.out.println(sr.getSnippet());
-        // System.out.println("====================================================================");
-        // }
-        // System.out.println("Total time =" + (System.currentTimeMillis() - startTime)
-        // / 1000.0 + " s");
-
-        // }
+        while (true) {
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            System.out.print("Enter query or enter exit to quit : ");
+            String input = br.readLine();
+            if (input.equals("exit")) {
+                break;
+            }
+            System.out.print("Enter type of query(conjunctive or disjunctive) : ");
+            String queryType = br.readLine();
+            long startTime = System.currentTimeMillis();
+            List<SearchResult> l = query.getSearchResults(input, queryType);
+            for (SearchResult sr : l) {
+                System.out.println("URL =" + sr.getUrl());
+                System.out.println("score =" + sr.getScore());
+                System.out.println("frequencies=" + sr.getWordsFrequenciesList());
+                System.out.println("");
+                System.out.println(sr.getSnippet());
+                System.out.println("====================================================================");
+            }
+            System.out.println("Total time =" + (System.currentTimeMillis() - startTime) / 1000.0 + " s");
+            System.out.println("\n\n\n\n\n");
+        }
 
     }
 }
